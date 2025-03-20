@@ -59,6 +59,7 @@ export default class Note {
   cssResult: CheckFilesResult['css']
   contentDom: Document
   meta: CachedMetadata | null
+  password: string
   isEncrypted = true
   isForceUpload = false
   isForceClipboard = false
@@ -83,6 +84,13 @@ export default class Note {
    */
   field (key: YamlField): string {
     return this.plugin.field(key)
+  }
+
+  /**
+   * Get the note password from frontmatter or settings
+   */
+  getPassword() {
+    return this.getProperty(YamlField.password) || this.plugin.settings.password;
   }
 
   async share () {
@@ -259,6 +267,9 @@ export default class Note {
 
     // Note options
     this.expiration = this.getExpiration()
+    
+    // Set password from frontmatter or settings
+    this.setPassword(this.getPassword())
 
     // Process CSS and images
     const uploadResult = await this.processMedia()
@@ -332,6 +343,9 @@ export default class Note {
           item.classes.push('theme-' + ThemeMode[this.plugin.settings.themeMode].toLowerCase())
         })
     }
+    //
+    this.template.password = this.password 
+    
     this.template.elements = this.elements
     // Check for MathJax
     this.template.mathJax = !!this.contentDom.body.innerHTML.match(/<mjx-container/)
@@ -626,6 +640,10 @@ export default class Note {
    */
   shareAsPlainText (isPlainText: boolean) {
     this.isEncrypted = !isPlainText
+  }
+
+  setPassword (password: string) {
+    this.password = password || '';
   }
 
   /**

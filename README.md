@@ -1,10 +1,7 @@
 # Share Note
 
-🚥 [System Status](https://status.note.sx/) 🚥
+An Obsidian plugin to instantly share a note, with the full theme and content exactly like you see in Reading View.
 
-Instantly share / publish a note. Notes are shared with your full theme and should look identical to how they look in your Obsidian vault.
-
-- 🆘 I need help! [Go here first for help and troubleshooting](https://docs.note.sx/)
 - 👉 [Install this plugin from the Plugin Store](https://obsidian.md/plugins?id=share-note)
 - 📄 [Documentation](https://docs.note.sx/)
 - 💬 [Discussion for this plugin](https://forum.obsidian.md/t/42788)
@@ -82,8 +79,6 @@ The content of your note is encrypted by default. What this means is that you ca
 
 > 🛈 **Encryption is optional, and can be turned on/off for individual notes, or for all notes, whatever you prefer.**
 
-> 🛈 Encryption applies to the note text content. It does not apply to attachments, which are stored unencrypted. Share Note is not a file sharing service, it's a **note* sharing service. If you want encrypted file sharing, it's not the right tool for you.
-
 ### 🧑‍💻 How it works 
 
 When you share an encrypted note, you'll get a share link that looks like this:
@@ -114,10 +109,26 @@ If you decide you want to share most notes unencrypted by default, then you can 
 
 If you want to self-host your own server, you can use this docker image: https://github.com/note-sx/server
 
+```bash
+docker pull ghcr.io/note-sx/server:latest
+```
+
 ## Troubleshooting
 
-See here: [Troubleshooting](https://docs.note.sx/troubleshooting)
+See here: [Troubleshooting](https://docs.note.sx/Troubleshooting)
 
-### System status
+## Development
 
-https://status.note.sx/
+### Prerequisites
+
+- Node.js and npm
+
+### Setup
+
+1. Clone this repository
+2. Run `npm install`
+
+### Development Build
+
+```bash
+npm run dev

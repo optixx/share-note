@@ -24,3 +24,18 @@ data.json
 test
 docs/.sass-cache/
 docs/_site/
+
+# Build output
+dist/
+
+# Node modules
+node_modules/
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

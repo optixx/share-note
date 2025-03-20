@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, TextComponent } from 'obsidian'
+import { App, PluginSettingTab, Setting, TextComponent, Notice } from 'obsidian'
 import SharePlugin from './main'
 
 export enum ThemeMode {
@@ -19,11 +19,18 @@ export enum YamlField {
   encrypted,
   unencrypted,
   title,
-  expires
+  expires,
+  password
+}
+
+export interface ServerConfig {
+  name: string;
+  url: string;
 }
 
 export interface ShareSettings {
   server: string;
+  servers: ServerConfig[];
   uid: string;
   apiKey: string;
   yamlField: string;
@@ -34,6 +41,7 @@ export interface ShareSettings {
   removeYaml: boolean;
   removeBacklinksFooter: boolean;
   expiry: string;
+  password: string;  // Add default password field
   clipboard: boolean;
   shareUnencrypted: boolean;
   authRedirect: string | null;
@@ -42,6 +50,10 @@ export interface ShareSettings {
 
 export const DEFAULT_SETTINGS: ShareSettings = {
   server: 'https://api.note.sx',
+  servers: [
+    { name: 'Note.sx', url: 'https://api.note.sx' },
+    { name: 'ObsidianShare', url: 'https://api.obsidianshare.com' }
+  ],
   uid: '',
   apiKey: '',
   yamlField: 'share',
@@ -52,6 +64,7 @@ export const DEFAULT_SETTINGS: ShareSettings = {
   removeYaml: true,
   removeBacklinksFooter: true,
   expiry: '',
+  password: '',  // Add default empty password
   clipboard: true,
   shareUnencrypted: false,
   authRedirect: null,
@@ -71,6 +84,84 @@ export class ShareSettingsTab extends PluginSettingTab {
     const { containerEl } = this
 
     containerEl.empty()
+
+    // Server selection
+    new Setting(containerEl)
+      .setName('Server')
+      .setDesc('Select a server to share notes with')
+      .addDropdown(dropdown => {
+        // Add all configured servers
+        this.plugin.settings.servers.forEach(server => {
+          dropdown.addOption(server.url, server.name);
+        });
+        
+        dropdown.setValue(this.plugin.settings.server)
+        dropdown.onChange(async (value) => {
+          this.plugin.settings.server = value;
+          await this.plugin.saveSettings();
+          // Redisplay settings to update API key field
+          this.display();
+        })
+      });
+
+    // Manage servers
+    new Setting(containerEl)
+      .setName('Manage servers')
+      .setDesc('Add, edit or remove servers')
+      .addButton(btn => btn
+        .setButtonText('Add new server')
+        .onClick(() => {
+          const modal = new ServerManagementModal(this.plugin, null, (name, url) => {
+            this.plugin.settings.servers.push({ name, url });
+            this.plugin.saveSettings().then(() => this.display());
+          });
+          modal.open();
+        })
+      );
+
+    // Display existing servers for editing
+    this.plugin.settings.servers.forEach((server, index) => {
+      new Setting(containerEl)
+        .setName(server.name)
+        .setDesc(server.url)
+        .addButton(btn => btn
+          .setButtonText('Edit')
+          .onClick(() => {
+            const modal = new ServerManagementModal(this.plugin, server, (name, url) => {
+              this.plugin.settings.servers[index] = { name, url };
+              // If the edited server is the current server, update the server setting
+              if (this.plugin.settings.server === server.url) {
+                this.plugin.settings.server = url;
+              }
+              this.plugin.saveSettings().then(() => this.display());
+            });
+            modal.open();
+          })
+        )
+        .addButton(btn => btn
+          .setButtonText('Delete')
+          .setWarning()
+          .onClick(() => {
+            // Don't allow deleting if it's the last server
+            if (this.plugin.settings.servers.length <= 1) {
+              new Notice('Cannot delete the last server');
+              return;
+            }
+            
+            // If deleted server is the current server, switch to first available server
+            if (this.plugin.settings.server === server.url) {
+              const otherServer = this.plugin.settings.servers.find(s => s.url !== server.url);
+              if (otherServer) {
+                this.plugin.settings.server = otherServer.url;
+              }
+            }
+            
+            // Remove the server
+            this.plugin.settings.servers.splice(index, 1);
+            this.plugin.saveSettings().then(() => this.display());
+          })
+        );
+    });
 
     // API key
     new Setting(containerEl)
@@ -236,6 +327,85 @@ export class ShareSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings()
         }))
       .then(setting => addDocs(setting, 'https://docs.note.sx/notes/self-deleting-notes'))
+      
+    // Default note password
+    new Setting(containerEl)
+      .setName('Default note password')
+      .setDesc('Set a default password for all shared notes. You can override this on a per-note basis by setting a password in frontmatter using the property ' + this.plugin.field(YamlField.password))
+      .addText(text => text
+        .setPlaceholder('Password')
+        .setValue(this.plugin.settings.password)
+        .onChange(async (value) => {
+          this.plugin.settings.password = value
+          await this.plugin.saveSettings()
+        }))
+  }
+}
+
+// Create a modal for adding/editing servers
+import { Modal, Setting as ModalSetting } from 'obsidian';
+
+class ServerManagementModal extends Modal {
+  plugin: SharePlugin;
+  serverConfig: ServerConfig | null;
+  onSubmit: (name: string, url: string) => void;
+  nameValue: string = '';
+  urlValue: string = '';
+  
+  constructor(plugin: SharePlugin, serverConfig: ServerConfig | null, onSubmit: (name: string, url: string) => void) {
+    super(plugin.app);
+    this.plugin = plugin;
+    this.serverConfig = serverConfig;
+    this.onSubmit = onSubmit;
+    
+    // If editing an existing server, pre-populate the values
+    if (serverConfig) {
+      this.nameValue = serverConfig.name;
+      this.urlValue = serverConfig.url;
+    }
+  }
+  
+  onOpen() {
+    const { contentEl } = this;
+    
+    contentEl.createEl('h2', { text: this.serverConfig ? 'Edit Server' : 'Add Server' });
+    
+    new ModalSetting(contentEl)
+      .setName('Name')
+      .setDesc('A name for this server')
+      .addText(text => text
+        .setValue(this.nameValue)
+        .onChange(value => this.nameValue = value)
+      );
+      
+    new ModalSetting(contentEl)
+      .setName('URL')
+      .setDesc('The server URL (e.g., https://api.note.sx)')
+      .addText(text => text
+        .setValue(this.urlValue)
+        .onChange(value => this.urlValue = value)
+      );
+      
+    new ModalSetting(contentEl)
+      .addButton(btn => btn
+        .setButtonText(this.serverConfig ? 'Save' : 'Add')
+        .setCta()
+        .onClick(() => {
+          if (this.nameValue && this.urlValue) {
+            this.onSubmit(this.nameValue, this.urlValue);
+            this.close();
+          }
+        })
+      )
+      .addButton(btn => btn
+        .setButtonText('Cancel')
+        .onClick(() => this.close())
+      );
+  }
+  
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
   }
 }
 

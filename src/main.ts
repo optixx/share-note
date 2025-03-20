@@ -24,11 +24,32 @@ export default class SharePlugin extends Plugin {
       this.settings.uid = await shortHash('' + Date.now() + Math.random())
       await this.saveSettings()
     }
+    
+    // Ensure servers array exists (for backwards compatibility)
+    if (!this.settings.servers) {
+      this.settings.servers = DEFAULT_SETTINGS.servers.slice();
+      await this.saveSettings();
+    }
+    
+    // Ensure current server is in the servers list
     if (this.settings.server === 'https://api.obsidianshare.com') {
       // Migrate to new server
       this.settings.server = 'https://api.note.sx'
       await this.saveSettings()
     }
+    
+    // Make sure current server is in the list, add if not
+    if (!this.settings.servers.some(s => s.url === this.settings.server)) {
+      // Extract a name from the server URL
+      const url = new URL(this.settings.server);
+      const name = url.hostname.replace(/^api\./, '');
+      this.settings.servers.push({
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        url: this.settings.server
+      });
+      await this.saveSettings();
+    }
+    
     this.settingsPage = new ShareSettingsTab(this.app, this)
     this.addSettingTab(this.settingsPage)
 
@@ -162,6 +183,10 @@ export default class SharePlugin extends Plugin {
         // User has set the frontmatter property `share_encrypted` = true
         // This setting goes after the 'unencrypted' setting, just in case of conflicting checkboxes
         note.shareAsPlainText(false)
+      }
+
+      if (meta?.frontmatter?.[note.field(YamlField.password)]) {
+        note.setPassword(meta.frontmatter[note.field(YamlField.password)])
       }
       if (forceUpload) {
         note.forceUpload()
