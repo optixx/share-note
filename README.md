@@ -105,6 +105,15 @@ You may optionally share an unencrypted version of a note by using the frontmatt
 
 If you decide you want to share most notes unencrypted by default, then you can encrypt an individual note by using a frontmatter checkbox called `share_encrypted`.
 
+## Password Protection
+
+In addition to encryption, you can also set a password to control access to a shared note. This is handled via the HTTP server, requiring the user to enter the correct password before accessing the note.
+
+- A **default password** can be set in the plugin settings tab, which will apply to all shared notes unless overridden.
+- You can specify a **custom password** for an individual note by using the frontmatter property `share_password`.
+
+This provides an extra layer of access control, allowing you to share notes selectively without relying solely on encryption.
+
 ## Self-hosting
 
 If you want to self-host your own server, you can use this docker image: https://github.com/note-sx/server
@@ -132,3 +141,4 @@ See here: [Troubleshooting](https://docs.note.sx/Troubleshooting)
 
 ```bash
 npm run dev
+```
